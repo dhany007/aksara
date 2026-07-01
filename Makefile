@@ -1,34 +1,23 @@
 IMAGE = adipatidhany/aksara:latest
-PEM   = $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))/ssh-key.pem
-VPS   = dhany007@103.93.163.115
-REMOTE_DIR = /home/dhany007/workspace/projects/aksara
 
-# Jalankan lokal
-up:
-	docker compose up -d --build
+# Translate local books with Go.
+translate:
+	go run ./cmd/aksara
 
-# Hentikan lokal
-down:
-	docker compose down
+# Translate local books inside Docker.
+docker-translate:
+	docker compose run --rm app
 
-# Build image untuk VPS (linux/amd64) dan push ke Docker Hub
+# Build the Docker image.
+build:
+	docker compose build
+
+# Run Go tests.
+test:
+	go test ./...
+
+# Build and push the image for linux/amd64.
 push:
 	docker buildx build --platform linux/amd64 -t $(IMAGE) --push .
 
-# SSH ke VPS
-ssh:
-	ssh -i $(PEM) $(VPS)
-
-# Update app di VPS (pull image terbaru & restart)
-deploy:
-	ssh -i $(PEM) $(VPS) "cd $(REMOTE_DIR) && docker compose pull && docker compose up -d"
-
-# Sync database & covers dari lokal ke VPS
-sync:
-	./sync-to-vps.sh
-
-# Lihat log VPS
-logs:
-	ssh -i $(PEM) $(VPS) "cd $(REMOTE_DIR) && docker compose logs -f"
-
-.PHONY: up down push ssh deploy sync logs
+.PHONY: translate docker-translate build test push

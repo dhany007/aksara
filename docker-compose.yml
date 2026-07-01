@@ -2,19 +2,15 @@ services:
   app:
     image: adipatidhany/aksara:latest
     build: .
-    ports:
-      - "${PORT:-8080}:8080"
     env_file: .env
     environment:
-      PORT: "8080"
-      DATA_DIR: /data
-      STORAGE_DIR: /storage
+      BOOKS_DIR: /app/books
+      RESULTS_DIR: /app/results
       PYTHON_BIN: python3
       PARSER_SCRIPT: /app/parser/extract.py
     volumes:
-      - ./data:/data
-      - ./storage:/storage
+      - ./books:/app/books
+      - ./results:/app/results
     dns:
       - 8.8.8.8
       - 1.1.1.1
-    restart: unless-stopped

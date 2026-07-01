@@ -1,56 +1,64 @@
 # Aksara
 
-Self-hosted AI-powered e-reader that translates English PDF books into natural Indonesian and serves them as a clean, mobile-friendly reading experience.
+Aksara translates English books into natural Indonesian and outputs EPUB files you can read in your phone or tablet's default book reader.
 
-![Home](assets/img/home.png)
-
-## Screenshots
-
-| Login | Library |
-|-------|---------|
-| ![Login](assets/img/login.png) | ![Home](assets/img/home.png) |
-
-| Novel | Technical Book |
-|-------|----------------|
-| ![Novel](assets/img/sample_novel.png) | ![Technical](assets/img/sample_technical.png) |
+It is no longer a hosted e-reader. There is no upload UI, login, SQLite database, or web reader. Put books in `books/`, run the translator, and take the translated `.epub` from `results/`.
 
 ## Features
 
-- Upload English PDF books
-- Automatic translation to Indonesian via DeepSeek API
-- Preserves code blocks and software engineering terms
-- Clean HTML reader (not a PDF viewer)
-- Lazy-load pages for fast reading
-- Resumes reading from last scroll position
-- Dark / Light mode toggle
-- 6 font choices (Sans, Inter, Nunito, Lora, Source Serif, Merriweather)
-- Adjustable font size
-- Organize books into shelves
-- Single-user, self-hosted
+- Read source books from `books/`
+- Supports `.pdf` and DRM-free `.epub` inputs
+- Translate novels into natural Indonesian with DeepSeek API
+- Preserve story flow, dialogue, character voice, names, places, and invented terms
+- Generate EPUB output for Apple Books, Google Play Books, Moon+ Reader, Kobo, and similar readers
+- Resume interrupted translation from JSON chunk cache
+- Skip already finished books by default
+- Best-effort PDF first-page cover extraction
+- No hosting required
 
-## Tech Stack
+## Folder Layout
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Go + Echo |
-| AI | DeepSeek API |
-| PDF Extraction | Python + PyMuPDF |
-| Frontend | Server-rendered HTML + Tailwind CSS |
-| Database | SQLite |
-| Deployment | Docker Compose |
+```text
+aksara/
+├── books/                 # input: .pdf or .epub
+├── results/               # output: translated .epub
+│   └── .cache/            # resumable per-book chunks
+├── cmd/aksara/            # CLI entrypoint
+├── internal/              # translator pipeline
+├── parser/extract.py      # PDF extraction via PyMuPDF
+├── .env
+├── Dockerfile
+└── docker-compose.yml
+```
+
+Example:
+
+```text
+books/
+  novel-a.pdf
+  novel-b.epub
+
+results/
+  novel-a.epub
+  novel-b.epub
+  .cache/
+    novel-a/
+      extract.json
+      chunk-0001.json
+      chunk-0002.json
+```
 
 ## Setup
 
 ### Prerequisites
 
-- Docker + Docker Compose
-- DeepSeek API key — [api-docs.deepseek.com](https://api-docs.deepseek.com)
+- DeepSeek API key
+- For local runs: Go 1.25+, Python 3.10+, PyMuPDF
+- Or Docker + Docker Compose
 
-### 1. Clone and configure
+### Configure
 
 ```bash
-git clone <repo>
-cd aksara
 cp .env.example .env
 ```
 
@@ -58,108 +66,68 @@ Edit `.env`:
 
 ```env
 DEEPSEEK_API_KEY=sk-xxx
-DEEPSEEK_MODEL=deepseek-chat
-SESSION_SECRET=change-this-to-a-random-string
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD_HASH=$$2a$$10$$...   # bcrypt hash — note $$ for Docker Compose
-PORT=8080
-DATA_DIR=./data
-STORAGE_DIR=./storage
+DEEPSEEK_MODEL=deepseek-v4-pro
+
+BOOKS_DIR=./books
+RESULTS_DIR=./results
+
+TRANSLATION_CONCURRENCY=1
+TRANSLATION_RETRIES=2
+TRANSLATION_TIMEOUT=120s
+MAX_CHUNK_CHARS=7000
+OVERWRITE=false
+
+PYTHON_BIN=python3
+PARSER_SCRIPT=parser/extract.py
 ```
 
-Generate a bcrypt hash for your password:
+## Usage
+
+Put books into `books/`:
+
+```text
+books/my-novel.pdf
+books/another-novel.epub
+```
+
+Run locally:
 
 ```bash
-# Option 1: htpasswd (Apache utils)
-htpasswd -bnBC 10 "" yourpassword | tr -d ':\n'
-
-# Option 2: Python
-python3 -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt(rounds=10)).decode())"
+go run ./cmd/aksara
 ```
 
-> **Note:** In `.env`, replace every `$` in the hash with `$$` so Docker Compose does not treat them as variable references.
-
-### 2. Run
+Or run with Docker:
 
 ```bash
-docker compose up -d
+docker compose run --rm app
 ```
 
-Open [http://localhost:8080](http://localhost:8080)
+Translated EPUB files appear in `results/`:
 
-### Development (without Docker)
-
-Requirements: Go 1.22+, Python 3.10+
-
-```bash
-pip install pymupdf
-go run ./cmd/server
+```text
+results/my-novel.epub
+results/another-novel.epub
 ```
 
-## Environment Variables
+## Resume Behavior
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DEEPSEEK_API_KEY` | yes | — | DeepSeek API key |
-| `DEEPSEEK_MODEL` | no | `deepseek-chat` | Model to use |
-| `SESSION_SECRET` | yes | — | Random string for cookie signing |
-| `ADMIN_USERNAME` | yes | — | Login username |
-| `ADMIN_PASSWORD_HASH` | yes | — | bcrypt hash of login password (use `$$` in `.env`) |
-| `PORT` | no | `8080` | HTTP port |
-| `DATA_DIR` | no | `./data` | Path for SQLite DB |
-| `STORAGE_DIR` | no | `./storage` | Path for uploaded PDFs and covers |
-| `PYTHON_BIN` | no | `python3` | Python interpreter path |
-| `PARSER_SCRIPT` | no | `parser/extract.py` | Path to PDF extractor script |
+Aksara treats the final EPUB as the "done" marker:
 
-## Architecture Overview
+- `results/book.epub` exists: skip the book
+- no final EPUB but cache exists: resume from missing chunks
+- no final EPUB and no cache: start from scratch
 
-```
-Upload PDF
-    └─→ store to storage/pdfs/
-    └─→ background pipeline:
-        1. Python subprocess (PyMuPDF) → extract text per page → JSON
-        2. Go worker → translate each page via DeepSeek API
-        3. Save translated HTML fragments to SQLite
-    └─→ book available in library
+If the terminal is closed midway, completed chunks remain in:
 
-Open Book
-    └─→ render HTML reader
-    └─→ lazy load pages via fetch
-    └─→ restore last scroll position
-    └─→ save scroll position (debounced, every 2s)
+```text
+results/.cache/book/chunk-0001.json
+results/.cache/book/chunk-0002.json
 ```
 
-## Project Structure
+Running Aksara again continues from the next missing chunk.
 
-```
-aksara/
-├── cmd/server/main.go          # entry point
-├── internal/
-│   ├── config/                 # env config loader
-│   ├── db/                     # SQLite connection + migrations
-│   ├── handler/                # Echo HTTP handlers
-│   ├── middleware/             # session auth middleware
-│   ├── model/                  # data structs
-│   ├── service/                # business logic + DeepSeek client
-│   └── worker/                 # background translation pipeline
-├── parser/extract.py           # PDF extractor (called as subprocess)
-├── web/templates/              # HTML templates
-├── assets/img/                 # screenshots
-├── .env.example
-├── Dockerfile
-└── docker-compose.yml
-```
+## Notes
 
-## Book Status Lifecycle
-
-```
-pending → extracting → translating → done
-                                   ↘ error (retryable)
-```
-
-## Out of Scope
-
-- Scanned PDF / OCR
-- Multi-user
-- Search inside book
-- EPUB or other formats
+- EPUB files internally contain XHTML by specification. Aksara removes the hosted HTML reader and does not write standalone HTML output.
+- PDF image extraction beyond the cover is not the first priority. For image-heavy books, DRM-free EPUB input will generally preserve structure better.
+- Existing old `data/` and `storage/` folders are not used by the new translator and are not deleted automatically.

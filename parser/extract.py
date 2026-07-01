@@ -5,12 +5,23 @@ import fitz  # PyMuPDF
 
 def extract(pdf_path: str) -> dict:
     doc = fitz.open(pdf_path)
+    metadata = doc.metadata or {}
     pages = []
     for i, page in enumerate(doc):
         text = page.get_text("text").strip()
         pages.append({"page": i + 1, "text": text})
+    toc = [
+        {"level": item[0], "title": item[1], "page": item[2]}
+        for item in doc.get_toc()
+    ]
     doc.close()
-    return {"pages": pages}
+    return {
+        "title": metadata.get("title") or "",
+        "author": metadata.get("author") or "",
+        "metadata": metadata,
+        "toc": toc,
+        "pages": pages,
+    }
 
 
 def render_cover(pdf_path: str, output_path: str):

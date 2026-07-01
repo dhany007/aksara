@@ -5,10 +5,16 @@
 # Runtime data
 data/
 storage/
+books/*
+results/*
+!books/.gitkeep
+!results/.gitkeep
 
 # Go build output
 ai-reader
 /ai-reader
+aksara
+/aksara
 
 # Python
 __pycache__/
