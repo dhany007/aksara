@@ -89,9 +89,58 @@ func (f *fakeTranslator) TranslateBlocks(ctx context.Context, text string) ([]co
 
 type fakeBuilder struct {
 	called bool
+	doc    content.TranslatedDocument
 }
 
 func (f *fakeBuilder) Build(path string, doc content.TranslatedDocument) error {
 	f.called = true
+	f.doc = doc
 	return os.WriteFile(path, []byte("epub"), 0644)
+}
+
+func TestRunnerLimitsPreviewToMaxPages(t *testing.T) {
+	resultsDir := t.TempDir()
+	source := content.SourceDocument{
+		Title: "Novel",
+		Sections: []content.SourceSection{
+			{Title: "Page 1", Start: 1, End: 1, Text: "Page one."},
+			{Title: "Page 2", Start: 2, End: 2, Text: "Page two."},
+			{Title: "Page 3", Start: 3, End: 3, Text: "Page three."},
+			{Title: "Page 4", Start: 4, End: 4, Text: "Page four."},
+		},
+	}
+	translator := &fakeTranslator{
+		blocksByText: map[string][]content.Block{
+			"Page one.":   {{Type: content.BlockParagraph, Text: "Halaman satu."}},
+			"Page two.":   {{Type: content.BlockParagraph, Text: "Halaman dua."}},
+			"Page three.": {{Type: content.BlockParagraph, Text: "Halaman tiga."}},
+		},
+	}
+	builder := &fakeBuilder{}
+	runner := NewRunner(RunnerOptions{
+		ResultsDir:    resultsDir,
+		MaxChunkChars: 32,
+		MaxPages:      3,
+		Extractor:     &fakeExtractor{source: source},
+		Translator:    translator,
+		Builder:       builder,
+	})
+
+	_, err := runner.Process(context.Background(), book.Book{
+		Path:       filepath.Join(t.TempDir(), "Novel.pdf"),
+		Slug:       "novel-preview-3p",
+		Title:      "Novel",
+		Format:     book.FormatPDF,
+		OutputPath: filepath.Join(resultsDir, "novel-preview-3p.epub"),
+		Status:     book.StatusPending,
+	})
+	if err != nil {
+		t.Fatalf("Process returned error: %v", err)
+	}
+	if translator.calls != 3 {
+		t.Fatalf("translator calls = %d", translator.calls)
+	}
+	if len(builder.doc.Chapters) != 3 {
+		t.Fatalf("chapters = %d", len(builder.doc.Chapters))
+	}
 }

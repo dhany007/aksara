@@ -75,6 +75,7 @@ TRANSLATION_CONCURRENCY=1
 TRANSLATION_RETRIES=2
 TRANSLATION_TIMEOUT=120s
 MAX_CHUNK_CHARS=7000
+MAX_PAGES=0
 OVERWRITE=false
 
 PYTHON_BIN=python3
@@ -100,6 +101,19 @@ Or run with Docker:
 
 ```bash
 docker compose run --rm app
+```
+
+To preview only the first 3 pages, set `MAX_PAGES=3` in `.env` or inline:
+
+```bash
+MAX_PAGES=3 go run ./cmd/aksara
+```
+
+Preview output uses a separate file and cache, for example:
+
+```text
+results/my-novel-preview-3p.epub
+results/.cache/my-novel-preview-3p/
 ```
 
 Translated EPUB files appear in `results/`:

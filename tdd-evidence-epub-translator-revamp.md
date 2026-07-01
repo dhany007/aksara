@@ -20,6 +20,7 @@
 | 5 | EPUB builder writes a valid EPUB zip skeleton, with uncompressed `mimetype`, OPF/nav/chapter files, and escaped content. | `internal/epub/builder_test.go` | unit | `go test ./internal/...` failed because package had no implementation files. | `go test ./...` passed. |
 | 6 | DeepSeek client parses JSON block output and classifies auth failures as permanent. | `internal/service/translator_test.go` | unit | `go test ./internal/...` failed because `TranslatorConfig` and `TranslateBlocks` did not exist. | `go test ./...` passed. |
 | 7 | Pipeline resumes from cached chunks and writes final EPUB without retranslating completed chunks. | `internal/pipeline/pipeline_test.go` | integration-style unit | `go test ./internal/...` failed because package had no implementation files. | `go test ./...` passed. |
+| 8 | Preview mode can limit output to the first N pages without poisoning the full-book cache/output. | `internal/config/config_test.go`, `internal/book/discovery_test.go`, `internal/pipeline/pipeline_test.go` | unit/integration-style unit | `go test ./internal/config ./internal/book ./internal/pipeline` failed with missing `MaxPages`, `Book.Preview`, and `RunnerOptions.MaxPages`. | `go test ./internal/config ./internal/book ./internal/pipeline` passed. |
 
 ## Validation Commands
 
@@ -28,6 +29,7 @@
 - `go vet ./...`: PASS.
 - `python3 -m py_compile parser/extract.py`: PASS.
 - `DEEPSEEK_API_KEY=sk-test BOOKS_DIR=/private/tmp/aksara-empty-books RESULTS_DIR=/private/tmp/aksara-empty-results go run ./cmd/aksara`: PASS, found 0 books and made no API call.
+- `DEEPSEEK_API_KEY=sk-test BOOKS_DIR=/private/tmp/aksara-empty-books RESULTS_DIR=/private/tmp/aksara-empty-results MAX_PAGES=3 go run ./cmd/aksara`: PASS, found 0 books and made no API call.
 
 ## Coverage / Gaps
 

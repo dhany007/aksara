@@ -58,6 +58,32 @@ func TestSlugifyKeepsReadableASCIIName(t *testing.T) {
 	}
 }
 
+func TestBookPreviewUsesSeparateOutputAndCacheSlug(t *testing.T) {
+	resultsDir := t.TempDir()
+	input := Book{
+		Path:       filepath.Join(t.TempDir(), "Novel.pdf"),
+		Title:      "Novel",
+		Slug:       "novel",
+		Format:     FormatPDF,
+		OutputPath: filepath.Join(resultsDir, "novel.epub"),
+		Status:     StatusDone,
+	}
+
+	preview, err := input.Preview(3, false)
+	if err != nil {
+		t.Fatalf("Preview returned error: %v", err)
+	}
+	if preview.Slug != "novel-preview-3p" {
+		t.Fatalf("Slug = %q", preview.Slug)
+	}
+	if preview.OutputPath != filepath.Join(resultsDir, "novel-preview-3p.epub") {
+		t.Fatalf("OutputPath = %q", preview.OutputPath)
+	}
+	if preview.Status != StatusPending {
+		t.Fatalf("Status = %s", preview.Status)
+	}
+}
+
 func touch(t *testing.T, path string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte("x"), 0644); err != nil {

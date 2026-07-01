@@ -32,6 +32,24 @@ type Book struct {
 	Status     Status
 }
 
+func (b Book) Preview(maxPages int, overwrite bool) (Book, error) {
+	if maxPages <= 0 {
+		return b, nil
+	}
+	preview := b
+	preview.Slug = fmt.Sprintf("%s-preview-%dp", b.Slug, maxPages)
+	preview.OutputPath = filepath.Join(filepath.Dir(b.OutputPath), preview.Slug+".epub")
+	preview.Status = StatusPending
+	if !overwrite {
+		if _, err := os.Stat(preview.OutputPath); err == nil {
+			preview.Status = StatusDone
+		} else if err != nil && !os.IsNotExist(err) {
+			return Book{}, fmt.Errorf("stat preview output %s: %w", preview.OutputPath, err)
+		}
+	}
+	return preview, nil
+}
+
 func Discover(booksDir, resultsDir string, overwrite bool) ([]Book, error) {
 	entries, err := os.ReadDir(booksDir)
 	if err != nil {

@@ -45,6 +45,7 @@ type Builder interface {
 type RunnerOptions struct {
 	ResultsDir             string
 	MaxChunkChars          int
+	MaxPages               int
 	TranslationRetries     int
 	TranslationConcurrency int
 	Extractor              Extractor
@@ -55,6 +56,7 @@ type RunnerOptions struct {
 type Runner struct {
 	resultsDir             string
 	maxChunkChars          int
+	maxPages               int
 	translationRetries     int
 	translationConcurrency int
 	store                  *cache.Store
@@ -73,6 +75,7 @@ func NewRunner(opts RunnerOptions) *Runner {
 	return &Runner{
 		resultsDir:             opts.ResultsDir,
 		maxChunkChars:          opts.MaxChunkChars,
+		maxPages:               opts.MaxPages,
 		translationRetries:     opts.TranslationRetries,
 		translationConcurrency: opts.TranslationConcurrency,
 		store:                  cache.NewStore(opts.ResultsDir),
@@ -109,6 +112,7 @@ func (r *Runner) Process(ctx context.Context, input book.Book) (Result, error) {
 		result.Duration = time.Since(start)
 		return result, err
 	}
+	source = content.LimitPages(source, r.maxPages)
 	chunks := content.PlanChunks(source, r.maxChunkChars)
 	if len(chunks) == 0 {
 		err := fmt.Errorf("no translatable text found")

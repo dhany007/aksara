@@ -59,6 +59,7 @@ func TestFromEnvParsesRuntimeOptions(t *testing.T) {
 		"TRANSLATION_CONCURRENCY": "3",
 		"TRANSLATION_RETRIES":     "4",
 		"TRANSLATION_TIMEOUT":     "45s",
+		"MAX_PAGES":               "3",
 		"OVERWRITE":               "true",
 		"PYTHON_BIN":              "python",
 		"PARSER_SCRIPT":           "/app/parser/extract.py",
@@ -73,10 +74,23 @@ func TestFromEnvParsesRuntimeOptions(t *testing.T) {
 		cfg.TranslationConcurrency != 3 ||
 		cfg.TranslationRetries != 4 ||
 		cfg.TranslationTimeout != 45*time.Second ||
+		cfg.MaxPages != 3 ||
 		!cfg.Overwrite ||
 		cfg.PythonBin != "python" ||
 		cfg.ParserScript != "/app/parser/extract.py" {
 		t.Fatalf("unexpected cfg: %#v", cfg)
+	}
+}
+
+func TestFromEnvDefaultsToNoPageLimit(t *testing.T) {
+	cfg, err := FromEnv(mapEnv(map[string]string{
+		"DEEPSEEK_API_KEY": "sk-test",
+	}))
+	if err != nil {
+		t.Fatalf("FromEnv returned error: %v", err)
+	}
+	if cfg.MaxPages != 0 {
+		t.Fatalf("MaxPages = %d", cfg.MaxPages)
 	}
 }
 

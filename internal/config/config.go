@@ -22,6 +22,7 @@ type Config struct {
 	PythonBin              string
 	ParserScript           string
 	MaxChunkChars          int
+	MaxPages               int
 }
 
 func Load() (*Config, error) {
@@ -60,6 +61,9 @@ func FromEnv(getenv func(string) string) (*Config, error) {
 	}
 	if cfg.MaxChunkChars, err = parsePositiveInt(envOr(getenv, "MAX_CHUNK_CHARS", "7000")); err != nil {
 		return nil, fmt.Errorf("MAX_CHUNK_CHARS: %w", err)
+	}
+	if cfg.MaxPages, err = parseNonNegativeInt(envOr(getenv, "MAX_PAGES", "0")); err != nil {
+		return nil, fmt.Errorf("MAX_PAGES: %w", err)
 	}
 
 	if cfg.DeepSeekAPIKey == "" {

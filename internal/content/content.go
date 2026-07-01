@@ -57,6 +57,24 @@ type TranslatedDocument struct {
 	Chapters []TranslatedChunk `json:"chapters"`
 }
 
+func LimitPages(doc SourceDocument, maxPages int) SourceDocument {
+	if maxPages <= 0 {
+		return doc
+	}
+	limited := doc
+	limited.Sections = nil
+	for _, section := range doc.Sections {
+		if section.Start > maxPages {
+			continue
+		}
+		if section.End > maxPages {
+			section.End = maxPages
+		}
+		limited.Sections = append(limited.Sections, section)
+	}
+	return limited
+}
+
 func PlanChunks(doc SourceDocument, maxChars int) []Chunk {
 	if maxChars <= 0 {
 		maxChars = 6000
