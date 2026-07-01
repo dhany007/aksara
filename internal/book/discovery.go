@@ -23,6 +23,8 @@ const (
 	StatusDone    Status = "done"
 )
 
+const translatedOutputSuffix = "-indonesia"
+
 type Book struct {
 	Path       string
 	Title      string
@@ -38,7 +40,7 @@ func (b Book) Preview(maxPages int, overwrite bool) (Book, error) {
 	}
 	preview := b
 	preview.Slug = fmt.Sprintf("%s-preview-%dp", b.Slug, maxPages)
-	preview.OutputPath = filepath.Join(filepath.Dir(b.OutputPath), preview.Slug+".epub")
+	preview.OutputPath = filepath.Join(filepath.Dir(b.OutputPath), previewOutputName(b.Slug, maxPages))
 	preview.Status = StatusPending
 	if !overwrite {
 		if _, err := os.Stat(preview.OutputPath); err == nil {
@@ -69,7 +71,7 @@ func Discover(booksDir, resultsDir string, overwrite bool) ([]Book, error) {
 		if slug == "" {
 			slug = "book"
 		}
-		output := filepath.Join(resultsDir, slug+".epub")
+		output := filepath.Join(resultsDir, translatedOutputName(slug))
 		status := StatusPending
 		if !overwrite {
 			if _, err := os.Stat(output); err == nil {
@@ -111,6 +113,14 @@ func Slugify(name string) string {
 		}
 	}
 	return strings.Trim(b.String(), "-")
+}
+
+func translatedOutputName(slug string) string {
+	return slug + translatedOutputSuffix + ".epub"
+}
+
+func previewOutputName(slug string, maxPages int) string {
+	return fmt.Sprintf("%s%s-preview-%dp.epub", slug, translatedOutputSuffix, maxPages)
 }
 
 func formatForName(name string) (Format, bool) {

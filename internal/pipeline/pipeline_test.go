@@ -48,7 +48,7 @@ func TestRunnerResumesCachedChunksAndWritesEPUB(t *testing.T) {
 		Slug:       "novel",
 		Title:      "Novel",
 		Format:     book.FormatPDF,
-		OutputPath: filepath.Join(resultsDir, "novel.epub"),
+		OutputPath: filepath.Join(resultsDir, "novel-indonesia.epub"),
 		Status:     book.StatusPending,
 	})
 	if err != nil {
@@ -64,7 +64,7 @@ func TestRunnerResumesCachedChunksAndWritesEPUB(t *testing.T) {
 	if !builder.called {
 		t.Fatal("builder was not called")
 	}
-	if _, err := os.Stat(filepath.Join(resultsDir, "novel.epub")); err != nil {
+	if _, err := os.Stat(filepath.Join(resultsDir, "novel-indonesia.epub")); err != nil {
 		t.Fatalf("output epub missing: %v", err)
 	}
 }
@@ -131,7 +131,7 @@ func TestRunnerLimitsPreviewToMaxPages(t *testing.T) {
 		Slug:       "novel-preview-3p",
 		Title:      "Novel",
 		Format:     book.FormatPDF,
-		OutputPath: filepath.Join(resultsDir, "novel-preview-3p.epub"),
+		OutputPath: filepath.Join(resultsDir, "novel-indonesia-preview-3p.epub"),
 		Status:     book.StatusPending,
 	})
 	if err != nil {

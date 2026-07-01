@@ -14,7 +14,7 @@ func TestDiscoverFindsPDFAndEPUBInputs(t *testing.T) {
 	touch(t, filepath.Join(booksDir, "Alpha Novel.PDF"))
 	touch(t, filepath.Join(booksDir, "notes.txt"))
 	touch(t, filepath.Join(booksDir, ".hidden.pdf"))
-	touch(t, filepath.Join(resultsDir, "alpha-novel.epub"))
+	touch(t, filepath.Join(resultsDir, "alpha-novel-indonesia.epub"))
 
 	books, err := Discover(booksDir, resultsDir, false)
 	if err != nil {
@@ -27,6 +27,9 @@ func TestDiscoverFindsPDFAndEPUBInputs(t *testing.T) {
 	if books[0].Slug != "alpha-novel" || books[0].Format != FormatPDF || books[0].Status != StatusDone {
 		t.Fatalf("unexpected first book: %#v", books[0])
 	}
+	if books[0].OutputPath != filepath.Join(resultsDir, "alpha-novel-indonesia.epub") {
+		t.Fatalf("OutputPath = %q", books[0].OutputPath)
+	}
 	if books[1].Slug != "zeta" || books[1].Format != FormatEPUB || books[1].Status != StatusPending {
 		t.Fatalf("unexpected second book: %#v", books[1])
 	}
@@ -37,7 +40,7 @@ func TestDiscoverOverwriteMarksExistingOutputPending(t *testing.T) {
 	resultsDir := t.TempDir()
 
 	touch(t, filepath.Join(booksDir, "Novel.pdf"))
-	touch(t, filepath.Join(resultsDir, "novel.epub"))
+	touch(t, filepath.Join(resultsDir, "novel-indonesia.epub"))
 
 	books, err := Discover(booksDir, resultsDir, true)
 	if err != nil {
@@ -65,7 +68,7 @@ func TestBookPreviewUsesSeparateOutputAndCacheSlug(t *testing.T) {
 		Title:      "Novel",
 		Slug:       "novel",
 		Format:     FormatPDF,
-		OutputPath: filepath.Join(resultsDir, "novel.epub"),
+		OutputPath: filepath.Join(resultsDir, "novel-indonesia.epub"),
 		Status:     StatusDone,
 	}
 
@@ -76,7 +79,7 @@ func TestBookPreviewUsesSeparateOutputAndCacheSlug(t *testing.T) {
 	if preview.Slug != "novel-preview-3p" {
 		t.Fatalf("Slug = %q", preview.Slug)
 	}
-	if preview.OutputPath != filepath.Join(resultsDir, "novel-preview-3p.epub") {
+	if preview.OutputPath != filepath.Join(resultsDir, "novel-indonesia-preview-3p.epub") {
 		t.Fatalf("OutputPath = %q", preview.OutputPath)
 	}
 	if preview.Status != StatusPending {

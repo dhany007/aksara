@@ -39,8 +39,8 @@ books/
   novel-b.epub
 
 results/
-  novel-a.epub
-  novel-b.epub
+  novel-a-indonesia.epub
+  novel-b-indonesia.epub
   .cache/
     novel-a/
       extract.json
@@ -112,22 +112,22 @@ MAX_PAGES=3 go run ./cmd/aksara
 Preview output uses a separate file and cache, for example:
 
 ```text
-results/my-novel-preview-3p.epub
+results/my-novel-indonesia-preview-3p.epub
 results/.cache/my-novel-preview-3p/
 ```
 
 Translated EPUB files appear in `results/`:
 
 ```text
-results/my-novel.epub
-results/another-novel.epub
+results/my-novel-indonesia.epub
+results/another-novel-indonesia.epub
 ```
 
 ## Resume Behavior
 
 Aksara treats the final EPUB as the "done" marker:
 
-- `results/book.epub` exists: skip the book
+- `results/book-indonesia.epub` exists: skip the book
 - no final EPUB but cache exists: resume from missing chunks
 - no final EPUB and no cache: start from scratch
 
