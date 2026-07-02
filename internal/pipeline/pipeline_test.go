@@ -259,6 +259,46 @@ func TestRunnerRetriesDeadlineExceededTranslation(t *testing.T) {
 	}
 }
 
+func TestRunnerRetriesInvalidTranslationJSON(t *testing.T) {
+	resultsDir := t.TempDir()
+	source := content.SourceDocument{
+		Title: "Novel",
+		Sections: []content.SourceSection{
+			{Title: "Chapter 1", Start: 1, End: 1, Text: "Malformed chunk text."},
+		},
+	}
+	translator := &retryTranslator{
+		failures: []error{fmt.Errorf("invalid translation json: unexpected end of JSON input")},
+		blocks:   []content.Block{{Type: content.BlockParagraph, Text: "Chunk berhasil setelah retry."}},
+	}
+	runner := NewRunner(RunnerOptions{
+		ResultsDir:         resultsDir,
+		MaxChunkChars:      32,
+		TranslationRetries: 1,
+		Extractor:          &fakeExtractor{source: source},
+		Translator:         translator,
+		Builder:            &fakeBuilder{},
+	})
+
+	result, err := runner.Process(context.Background(), book.Book{
+		Path:       filepath.Join(t.TempDir(), "Novel.pdf"),
+		Slug:       "novel",
+		Title:      "Novel",
+		Format:     book.FormatPDF,
+		OutputPath: filepath.Join(resultsDir, "novel-indonesia.epub"),
+		Status:     book.StatusPending,
+	})
+	if err != nil {
+		t.Fatalf("Process returned error: %v", err)
+	}
+	if result.Status != StatusTranslated {
+		t.Fatalf("Status = %s", result.Status)
+	}
+	if translator.calls != 2 {
+		t.Fatalf("translator calls = %d", translator.calls)
+	}
+}
+
 type retryTranslator struct {
 	failures []error
 	blocks   []content.Block

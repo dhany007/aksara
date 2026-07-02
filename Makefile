@@ -1,4 +1,13 @@
 IMAGE = adipatidhany/aksara:latest
+VENV_DIR ?= .venv
+PYTHON_BIN ?= $(VENV_DIR)/bin/python
+
+# Install Python dependencies for local PDF extraction.
+python-deps: $(PYTHON_BIN)
+	$(PYTHON_BIN) -m pip install -r requirements.txt
+
+$(PYTHON_BIN):
+	python3 -m venv $(VENV_DIR)
 
 # Translate local books with Go.
 translate:
@@ -20,4 +29,4 @@ test:
 push:
 	docker buildx build --platform linux/amd64 -t $(IMAGE) --push .
 
-.PHONY: translate docker-translate build test push
+.PHONY: python-deps translate docker-translate build test push

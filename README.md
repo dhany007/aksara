@@ -60,7 +60,10 @@ results/
 
 ```bash
 cp .env.example .env
+make python-deps
 ```
+
+`make python-deps` creates a local `.venv/` and installs PyMuPDF, which provides the `fitz` module used for PDF extraction.
 
 Edit `.env`:
 
@@ -78,7 +81,7 @@ MAX_CHUNK_CHARS=7000
 MAX_PAGES=0
 OVERWRITE=false
 
-PYTHON_BIN=python3
+PYTHON_BIN=./.venv/bin/python
 PARSER_SCRIPT=parser/extract.py
 ```
 

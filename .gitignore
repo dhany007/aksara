@@ -17,6 +17,7 @@ aksara
 /aksara
 
 # Python
+.venv/
 __pycache__/
 *.pyc
 parser/__pycache__/

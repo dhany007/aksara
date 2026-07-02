@@ -384,6 +384,8 @@ func isTransient(err error) bool {
 	}
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "transient") ||
+		strings.Contains(message, "invalid translation json") ||
+		strings.Contains(message, "decode translation response") ||
 		strings.Contains(message, "timeout") ||
 		strings.Contains(message, "deadline exceeded")
 }
