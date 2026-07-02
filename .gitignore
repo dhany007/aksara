@@ -25,3 +25,4 @@ parser/__pycache__/
 .idea/
 .vscode/
 *.swp
+.DS_Store
