@@ -41,8 +41,8 @@ func FromEnv(getenv func(string) string) (*Config, error) {
 		PythonBin:              envOr(getenv, "PYTHON_BIN", "python3"),
 		ParserScript:           envOr(getenv, "PARSER_SCRIPT", "parser/extract.py"),
 		TranslationConcurrency: 1,
-		TranslationRetries:     2,
-		TranslationTimeout:     120 * time.Second,
+		TranslationRetries:     3,
+		TranslationTimeout:     300 * time.Second,
 		MaxChunkChars:          7000,
 	}
 
@@ -53,10 +53,10 @@ func FromEnv(getenv func(string) string) (*Config, error) {
 	if cfg.TranslationConcurrency, err = parsePositiveInt(envOr(getenv, "TRANSLATION_CONCURRENCY", "1")); err != nil {
 		return nil, fmt.Errorf("TRANSLATION_CONCURRENCY: %w", err)
 	}
-	if cfg.TranslationRetries, err = parseNonNegativeInt(envOr(getenv, "TRANSLATION_RETRIES", "2")); err != nil {
+	if cfg.TranslationRetries, err = parseNonNegativeInt(envOr(getenv, "TRANSLATION_RETRIES", "3")); err != nil {
 		return nil, fmt.Errorf("TRANSLATION_RETRIES: %w", err)
 	}
-	if cfg.TranslationTimeout, err = time.ParseDuration(envOr(getenv, "TRANSLATION_TIMEOUT", "120s")); err != nil {
+	if cfg.TranslationTimeout, err = time.ParseDuration(envOr(getenv, "TRANSLATION_TIMEOUT", "300s")); err != nil {
 		return nil, fmt.Errorf("TRANSLATION_TIMEOUT: %w", err)
 	}
 	if cfg.MaxChunkChars, err = parsePositiveInt(envOr(getenv, "MAX_CHUNK_CHARS", "7000")); err != nil {

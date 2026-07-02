@@ -72,8 +72,8 @@ BOOKS_DIR=./books
 RESULTS_DIR=./results
 
 TRANSLATION_CONCURRENCY=1
-TRANSLATION_RETRIES=2
-TRANSLATION_TIMEOUT=120s
+TRANSLATION_RETRIES=3
+TRANSLATION_TIMEOUT=300s
 MAX_CHUNK_CHARS=7000
 MAX_PAGES=0
 OVERWRITE=false
@@ -95,6 +95,12 @@ Run locally:
 
 ```bash
 go run ./cmd/aksara
+```
+
+While running, Aksara prints stage updates and chunk progress, for example:
+
+```text
+[#####---------------]  25% translated chunk 5/20
 ```
 
 Or run with Docker:

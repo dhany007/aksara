@@ -29,10 +29,10 @@ func TestFromEnvLoadsTranslatorDefaults(t *testing.T) {
 	if cfg.TranslationConcurrency != 1 {
 		t.Fatalf("TranslationConcurrency = %d", cfg.TranslationConcurrency)
 	}
-	if cfg.TranslationRetries != 2 {
+	if cfg.TranslationRetries != 3 {
 		t.Fatalf("TranslationRetries = %d", cfg.TranslationRetries)
 	}
-	if cfg.TranslationTimeout != 120*time.Second {
+	if cfg.TranslationTimeout != 300*time.Second {
 		t.Fatalf("TranslationTimeout = %s", cfg.TranslationTimeout)
 	}
 	if cfg.Overwrite {

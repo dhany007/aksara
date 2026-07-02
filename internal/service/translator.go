@@ -33,7 +33,7 @@ func NewTranslator(cfg TranslatorConfig) *Translator {
 		cfg.BaseURL = deepSeekBaseURL
 	}
 	if cfg.Timeout <= 0 {
-		cfg.Timeout = 120 * time.Second
+		cfg.Timeout = 300 * time.Second
 	}
 	return &Translator{
 		apiKey:  cfg.APIKey,

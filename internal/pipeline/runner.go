@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -51,6 +52,7 @@ type RunnerOptions struct {
 	Extractor              Extractor
 	Translator             Translator
 	Builder                Builder
+	Progress               ProgressReporter
 }
 
 type Runner struct {
@@ -63,6 +65,7 @@ type Runner struct {
 	extractor              Extractor
 	translator             Translator
 	builder                Builder
+	progress               ProgressReporter
 }
 
 func NewRunner(opts RunnerOptions) *Runner {
@@ -82,6 +85,7 @@ func NewRunner(opts RunnerOptions) *Runner {
 		extractor:              opts.Extractor,
 		translator:             opts.Translator,
 		builder:                opts.Builder,
+		progress:               opts.Progress,
 	}
 }
 
@@ -121,6 +125,12 @@ func (r *Runner) Process(ctx context.Context, input book.Book) (Result, error) {
 		result.Duration = time.Since(start)
 		return result, err
 	}
+	r.report(ProgressEvent{
+		Stage:   ProgressStageChunks,
+		Message: fmt.Sprintf("planned %d chunk(s)", len(chunks)),
+		Current: 0,
+		Total:   len(chunks),
+	})
 
 	translated := content.TranslatedDocument{
 		Title:    firstNonEmpty(source.Title, input.Title),
@@ -130,10 +140,12 @@ func (r *Runner) Process(ctx context.Context, input book.Book) (Result, error) {
 		Chapters: make([]content.TranslatedChunk, len(chunks)),
 	}
 	var missing []missingChunk
+	cached := 0
 	for _, chunk := range chunks {
 		done, err := r.store.LoadChunk(input.Slug, chunk.Number)
 		if err == nil {
 			translated.Chapters[chunk.Number-1] = done
+			cached++
 			continue
 		}
 		if !errors.Is(err, cache.ErrNotFound) {
@@ -145,8 +157,14 @@ func (r *Runner) Process(ctx context.Context, input book.Book) (Result, error) {
 
 		missing = append(missing, missingChunk{chunk: chunk})
 	}
+	r.report(ProgressEvent{
+		Stage:   ProgressStageCache,
+		Message: fmt.Sprintf("cache ready: %d/%d chunk(s), %d missing", cached, len(chunks), len(missing)),
+		Current: cached,
+		Total:   len(chunks),
+	})
 	if len(missing) > 0 {
-		doneChunks, err := r.translateMissing(ctx, input.Slug, missing)
+		doneChunks, err := r.translateMissing(ctx, input.Slug, missing, cached, len(chunks))
 		if err != nil {
 			result.Status = StatusFailed
 			result.Error = err
@@ -158,6 +176,12 @@ func (r *Runner) Process(ctx context.Context, input book.Book) (Result, error) {
 		}
 	}
 
+	r.report(ProgressEvent{
+		Stage:   ProgressStageBuild,
+		Message: fmt.Sprintf("building EPUB: %s", input.OutputPath),
+		Current: len(chunks),
+		Total:   len(chunks),
+	})
 	if err := r.builder.Build(input.OutputPath, translated); err != nil {
 		result.Status = StatusFailed
 		result.Error = err
@@ -171,13 +195,22 @@ func (r *Runner) Process(ctx context.Context, input book.Book) (Result, error) {
 }
 
 func (r *Runner) loadOrExtract(ctx context.Context, input book.Book) (content.SourceDocument, error) {
+	r.report(ProgressEvent{Stage: ProgressStageSource, Message: "checking source cache"})
 	source, err := r.store.LoadSource(input.Slug)
 	if err == nil {
+		r.report(ProgressEvent{
+			Stage:   ProgressStageSource,
+			Message: fmt.Sprintf("source cache loaded: %d section(s)", len(source.Sections)),
+		})
 		return source, nil
 	}
 	if !errors.Is(err, cache.ErrNotFound) {
 		return content.SourceDocument{}, err
 	}
+	r.report(ProgressEvent{
+		Stage:   ProgressStageSource,
+		Message: fmt.Sprintf("extracting source text from %s; this can take a while", input.Format),
+	})
 	source, err = r.extractor.Extract(ctx, input, r.store.BookDir(input.Slug))
 	if err != nil {
 		return content.SourceDocument{}, fmt.Errorf("extract %s: %w", input.Path, err)
@@ -185,6 +218,10 @@ func (r *Runner) loadOrExtract(ctx context.Context, input book.Book) (content.So
 	if err := r.store.SaveSource(input.Slug, source); err != nil {
 		return content.SourceDocument{}, err
 	}
+	r.report(ProgressEvent{
+		Stage:   ProgressStageSource,
+		Message: fmt.Sprintf("source extracted: %d section(s)", len(source.Sections)),
+	})
 	return source, nil
 }
 
@@ -192,18 +229,38 @@ type missingChunk struct {
 	chunk content.Chunk
 }
 
-func (r *Runner) translateMissing(ctx context.Context, slug string, missing []missingChunk) ([]content.TranslatedChunk, error) {
+func (r *Runner) translateMissing(ctx context.Context, slug string, missing []missingChunk, completed int, total int) ([]content.TranslatedChunk, error) {
 	if r.translationConcurrency <= 1 || len(missing) == 1 {
 		done := make([]content.TranslatedChunk, 0, len(missing))
 		for _, item := range missing {
+			r.report(ProgressEvent{
+				Stage:   ProgressStageTranslate,
+				Message: fmt.Sprintf("translating chunk %d/%d", item.chunk.Number, total),
+				Current: completed,
+				Total:   total,
+			})
 			chunk, err := r.translateAndCache(ctx, slug, item.chunk)
 			if err != nil {
 				return nil, err
 			}
 			done = append(done, chunk)
+			completed++
+			r.report(ProgressEvent{
+				Stage:   ProgressStageTranslate,
+				Message: fmt.Sprintf("translated chunk %d/%d", chunk.Number, total),
+				Current: completed,
+				Total:   total,
+			})
 		}
 		return done, nil
 	}
+
+	r.report(ProgressEvent{
+		Stage:   ProgressStageTranslate,
+		Message: fmt.Sprintf("translating %d missing chunk(s) with concurrency %d", len(missing), r.translationConcurrency),
+		Current: completed,
+		Total:   total,
+	})
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -246,11 +303,24 @@ func (r *Runner) translateMissing(ctx context.Context, slug string, missing []mi
 			return nil, result.err
 		}
 		done = append(done, result.chunk)
+		completed++
+		r.report(ProgressEvent{
+			Stage:   ProgressStageTranslate,
+			Message: fmt.Sprintf("translated chunk %d/%d", result.chunk.Number, total),
+			Current: completed,
+			Total:   total,
+		})
 	}
 	if err := ctx.Err(); err != nil && len(done) != len(missing) {
 		return nil, err
 	}
 	return done, nil
+}
+
+func (r *Runner) report(event ProgressEvent) {
+	if r.progress != nil {
+		r.progress(event)
+	}
 }
 
 type translateResult struct {
@@ -293,12 +363,29 @@ func (r *Runner) translateWithRetry(ctx context.Context, chunk content.Chunk) ([
 		if !isTransient(err) || attempt == r.translationRetries {
 			break
 		}
+		r.report(ProgressEvent{
+			Stage:   ProgressStageTranslate,
+			Message: fmt.Sprintf("retrying chunk %d after transient error (%d/%d)", chunk.Number, attempt+1, r.translationRetries),
+		})
 	}
 	return nil, fmt.Errorf("translate chunk %d: %w", chunk.Number, lastErr)
 }
 
 func isTransient(err error) bool {
-	return err != nil && (strings.Contains(err.Error(), "transient") || strings.Contains(err.Error(), "timeout"))
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "transient") ||
+		strings.Contains(message, "timeout") ||
+		strings.Contains(message, "deadline exceeded")
 }
 
 func firstNonEmpty(values ...string) string {
